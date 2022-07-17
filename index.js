@@ -6,6 +6,7 @@ const Person = require('./models/person')
 
 const { all } = require('express/lib/application')
 const { json } = require('express/lib/response')
+const { default: mongoose } = require('mongoose')
 const app = express()
 
 morgan.token('person', function (req, res) {
@@ -30,54 +31,44 @@ app.get('/info', (request, response) => {
 })
 
 app.get('/api/persons/:id', (request, response) => {
-  const id = Number(request.params.id)
-  const person = persons.filter(person => person.id === id)[0]
-  if (person) {
+  Person.findById(request.params.id).then(person => {
     response.json(person)
-  } else {
+  }).catch(error => {
     response.status(404).end()
-  }
+  })
 })
 
-app.delete('/api/persons/:id', (request, response) => {
-  const id = Number(request.params.id)
-  persons = persons.filter(person => person.id !== id)
-
-  response.status(204).end()
+app.delete('/api/persons/:id', async (request, response) => {
+    await Person.findByIdAndDelete(request.params.id)
+    response.status(204).end()
 })
 
-const generateId = () => {
-  return Math.floor(Math.random() * 1000)
-}
+// const validEntry = (name, number) => {
+//   name = name.trim()
+//   number = number.trim()
+//   const allNames = persons.map(person => person.name)
 
-const validEntry = (name, number) => {
-  name = name.trim()
-  number = number.trim()
-  const allNames = persons.map(person => person.name)
-
-  return (name !== '' || name !== '') && !allNames.includes(name)
-}
+//   return (name !== '' || name !== '') && !allNames.includes(name)
+// }
 
 app.post('/api/persons', (request, response) => {
   const body = request.body
   const name = body.name
   const number = body.number
 
-  if (!validEntry(name, number)) {
-    return response.status(400).json({ 
-      error: 'name must be unique' 
-    })
+  if (!name && !number) {
+    return response.status(400).json({ error: 'name must be unique'})
   }
 
-  const person = {
-    id: generateId(),
+  const person = new Person({
+    // id: generateId(),
     name: name,
     number: number
-  }
-
-  persons = persons.concat(person)
-
-  response.json(person)
+  })
+  
+  person.save().then(savedPerson => {
+    response.json(savedPerson)
+  })
 })
 
 
